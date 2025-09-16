@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>媛媛好订制 - 节点 JSON/YAML 转小火箭单行导出工具（支持批量）</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      color: #fff;
+      overflow-x: hidden;
+      background: linear-gradient(270deg, #ff4e50, #fc913a, #f9d423, #ede574, #e1f5c4);
+      background-size: 1000% 1000%;
+      animation: backgroundShift 20s ease infinite;
+    }
+    @keyframes backgroundShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    .container {
+      max-width: 950px;
+      margin: auto;
+      background: rgba(0,0,0,0.6);
+      padding: 40px;
+      border-radius: 20px;
+      box-shadow: 0 6px 25px rgba(0,0,0,0.5);
+      position: relative;
+      z-index: 1;
+    }
+    h1 {
+      text-align: center;
+      font-size: 40px;
+      font-weight: bold;
+      background: linear-gradient(90deg, #ff6a00, #ee0979, #ff6a00);
+      background-size: 200% 200%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: shine 3s linear infinite;
+      margin-bottom: 20px;
+      text-shadow: 0 0 20px rgba(255,255,255,0.6);
+    }
+    @keyframes shine {
+      0% { background-position: 0% 50%; }
+      100% { background-position: 200% 50%; }
+    }
+    label { display: block; margin-top: 15px; font-weight: bold; color: #eee; }
+    textarea, input, select {
+      width: 100%; padding: 12px; margin-top: 8px;
+      border-radius: 10px; border: 1px solid #666;
+      font-family: monospace; font-size: 14px; box-sizing: border-box;
+      background: rgba(255,255,255,0.9); color: #000;
+    }
+    button {
+      display: inline-block; width: 48%; margin-top: 20px;
+      padding: 14px; border: none;
+      background: linear-gradient(135deg, #ff416c, #ff4b2b);
+      color: white; font-size: 16px; font-weight: bold;
+      border-radius: 12px; cursor: pointer; transition: 0.3s; text-align: center;
+    }
+    button:hover { transform: scale(1.05); }
+    .clear-btn { background: linear-gradient(135deg, #8e2de2, #4a00e0); }
+    .output { margin-top: 25px; background: rgba(255,255,255,0.9); padding: 20px; border-radius: 12px; color: #000; }
+    textarea#output, textarea#batchOutput { border: none; resize: none; }
+    .copy-btn { margin-top: 10px; padding: 8px; width: 100%; border: none; border-radius: 8px; background-color: #2196F3; color: #fff; font-size: 14px; cursor: pointer; transition: 0.3s; }
+    .copy-btn:hover { background-color: #1976D2; }
+    #preview { margin-top: 20px; padding: 15px; border-radius: 10px; background: #222; border: 1px solid #444; font-family: monospace; font-size: 14px; white-space: pre-line; color: #0f0; }
+    canvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 0;
+      pointer-events: none;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+</head>
+<body>
+  <canvas id="starfield"></canvas>
+  <div class="container">
+    <h1>✨ 媛媛好订制 ✨</h1>
+    <p style="text-align:center;color:#ddd">专属霸气闪亮工具 · JSON/YAML 节点一键转小火箭</p>
+
+    <!-- 单个节点 -->
+    <label>单个节点 JSON 或 YAML 输入：</label>
+    <textarea id="inputText" rows="10" placeholder='粘贴 JSON 或 YAML 单个节点配置...'></textarea>
+
+    <label>协议类型（可留空自动识别）：</label>
+    <select id="protocol">
+      <option value="">自动识别</option>
+      <option value="vless">VLESS</option>
+      <option value="vmess">VMess</option>
+      <option value="trojan">Trojan</option>
+      <option value="ss">Shadowsocks</option>
+      <option value="hy2">Hysteria2</option>
+    </select>
+
+    <label>手动修改节点备注名（可选）：</label>
+    <input id="customTag" type="text" placeholder="例如：美国-01 | 手动修改" />
+
+    <div class="btn-group">
+      <button onclick="processInput()">✨ 生成单个节点</button>
+      <button class="clear-btn" onclick="clearAll()">🧹 清除内容</button>
+    </div>
+
+    <div id="preview" style="display:none;"></div>
+
+    <div class="output">
+      <label>输出结果（单个）：</label>
+      <textarea id="output" rows="4" readonly></textarea>
+      <button class="copy-btn" onclick="copyOutput('output')">📋 复制到剪贴板</button>
+    </div>
+
+    <hr style="border:1px solid #666;margin:30px 0;">
+
+    <!-- 批量节点 -->
+    <label>批量 YAML/JSON 节点输入：</label>
+    <textarea id="batchInput" rows="10" placeholder='粘贴多个 YAML/JSON 节点配置...'></textarea>
+
+    <div class="btn-group">
+      <button onclick="processBatch()">🚀 批量转换</button>
+      <button class="clear-btn" onclick="clearBatch()">🧹 清除批量</button>
+    </div>
+
+    <div class="output">
+      <label>输出结果（批量）：</label>
+      <textarea id="batchOutput" rows="10" readonly></textarea>
+      <button class="copy-btn" onclick="copyOutput('batchOutput')">📋 复制全部结果</button>
+    </div>
+  </div>
+
+  <script>
+    // ============ 星光+鼠标粒子特效 ============
+    const canvas = document.getElementById('starfield');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    let stars = [];
+    for (let i=0; i<120; i++) {
+      stars.push({x: Math.random()*canvas.width, y: Math.random()*canvas.height, r: Math.random()*2, d: Math.random()*1});
+    }
+
+    function drawStars() {
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.fillStyle = "white";
+      ctx.shadowBlur = 20;
+      ctx.shadowColor = "white";
+      stars.forEach(s=>{
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI*2, true);
+        ctx.fill();
+      });
+      moveStars();
+    }
+    function moveStars() {
+      stars.forEach(s=>{
+        s.y += s.d;
+        if(s.y>canvas.height){ s.y=0; s.x=Math.random()*canvas.width; }
+      });
+    }
+    setInterval(drawStars,50);
+
+    // 鼠标跟随粒子
+    let particles = [];
+    document.addEventListener("mousemove", e=>{
+      for(let i=0;i<5;i++){
+        particles.push({x:e.clientX,y:e.clientY,dx:(Math.random()-0.5)*2,dy:(Math.random()-0.5)*2,life:100});
+      }
+    });
+    function animateParticles(){
+      particles.forEach((p,i)=>{
+        ctx.fillStyle="rgba(255,255,255,"+(p.life/100)+")";
+        ctx.beginPath(); ctx.arc(p.x,p.y,2,0,Math.PI*2); ctx.fill();
+        p.x+=p.dx; p.y+=p.dy; p.life--;
+        if(p.life<=0) particles.splice(i,1);
+      });
+      requestAnimationFrame(animateParticles);
+    }
+    animateParticles();
+
+    // ============ 节点转换逻辑 ============
+    function base64urlEncode(str) {
+      return btoa(unescape(encodeURIComponent(str)))
+        .replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+    }
+    function detectProtocol(node) {
+      if (node.type && node.type.toLowerCase() === 'hysteria2') return 'hy2';
+      if (node.v && node.add && node.id) return 'vmess';
+      if (node.uuid && node.server) return 'vless';
+      if (node.password && node.server && node.server_port && !node.method && !node.uuid && !node.type) return 'trojan';
+      if (node.method && node.password) return 'ss';
+      return 'vless';
+    }
+    function normalizeNode(node) {
+      return {
+        tag: node.name || node.tag || "未命名节点",
+        type: node.type || "vless",
+        uuid: node.uuid || "",
+        server: node.server || node.add || "",
+        server_port: node.port || node.server_port || "",
+        password: node.password || "",
+        method: node.method || "",
+        security: node.tls ? "tls" : (node.security || "none"),
+        transport: {
+          type: node.network || node.net || "tcp",
+          path: node["ws-opts"]?.path || node.path || "",
+          headers: { Host: (node["ws-opts"]?.headers?.Host || node.host || "") }
+        }
+      };
+    }
+    function convertNode(input, tagOverride="") {
+      let protocol = document.getElementById('protocol')?.value || "";
+      if (!protocol) protocol = detectProtocol(input);
+      let tag = tagOverride || document.getElementById('customTag')?.value.trim() || input.tag || "未命名节点";
+      let url = '';
+      if (protocol === 'vless') {
+        url = `vless://${input.uuid}@${input.server}:${input.server_port}?encryption=none&security=${input.security}&type=${input.transport.type}&host=${encodeURIComponent(input.transport.headers.Host)}&path=${encodeURIComponent(input.transport.path)}#${encodeURIComponent(tag)}`;
+      } else if (protocol === 'vmess') {
+        const node = {v:"2",ps:tag,add:input.server,port:input.server_port,id:input.uuid,aid:input.aid||"0",net:input.transport.type||"tcp",type:"none",host:input.transport.headers.Host||"",path:input.transport.path||"/",tls:input.security||""};
+        url = `vmess://${base64urlEncode(JSON.stringify(node))}`;
+      } else if (protocol === 'trojan') {
+        url = `trojan://${input.password}@${input.server}:${input.server_port}#${encodeURIComponent(tag)}`;
+      } else if (protocol === 'ss') {
+        const base = btoa(`${input.method}:${input.password}`);
+        url = `ss://${base}@${input.server}:${input.server_port}#${encodeURIComponent(tag)}`;
+      } else if (protocol === 'hy2') {
+        const tls = input.security === "tls" ? "1" : "0";
+        url = `hysteria2://${input.password}@${input.server}:${input.server_port}/?sni=${input.server}&tls=${tls}#${encodeURIComponent(tag)}`;
+      }
+      return url;
+    }
+    function processInput() {
+      let text = document.getElementById('inputText').value.trim();
+      if (!text) { alert('请输入内容！'); return; }
+      let node;
+      try { node = JSON.parse(text); }
+      catch { try { const parsed = jsyaml.load(text); node = Array.isArray(parsed)?parsed[0]:parsed; } catch { alert("输入既不是合法 JSON，也不是合法 YAML！"); return; } }
+      const normalized = normalizeNode(node);
+      const url = convertNode(normalized);
+      document.getElementById('output').value = url;
+      let previewText = `协议: ${detectProtocol(normalized)}\n名称: ${normalized.tag}\n服务器: ${normalized.server}\n端口: ${normalized.server_port}\nUUID/密码: ${normalized.uuid || normalized.password}\n传输方式: ${normalized.transport.type}\n路径: ${normalized.transport.path}\nTLS: ${normalized.security}`;
+      document.getElementById('preview').style.display = 'block';
+      document.getElementById('preview').textContent = previewText;
+    }
+    function processBatch() {
+      let text = document.getElementById('batchInput').value.trim();
+      if (!text) { alert('请输入批量节点 YAML/JSON！'); return; }
+      let parsed;
+      try { parsed = JSON.parse(text); }
+      catch { try { parsed = jsyaml.load(text); } catch { alert("批量输入既不是 JSON 也不是 YAML！"); return; } }
+      const nodes = Array.isArray(parsed)?parsed:[parsed];
+      const results = nodes.map(n => convertNode(normalizeNode(n), n.name || n.tag || ""));
+      document.getElementById('batchOutput').value = results.join("\n\n");
+    }
+    function copyOutput(id) {
+      const output = document.getElementById(id);
+      output.select(); document.execCommand('copy');
+      alert('已复制到剪贴板！');
+    }
+    function clearAll() {
+      document.getElementById('inputText').value='';document.getElementById('protocol').value='';document.getElementById('customTag').value='';document.getElementById('output').value='';document.getElementById('preview').style.display='none';
+    }
+    function clearBatch() {
+      document.getElementById('batchInput').value='';document.getElementById('batchOutput').value='';
+    }
+  </script>
+</body>
+</html>
