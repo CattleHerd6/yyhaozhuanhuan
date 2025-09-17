@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>媛媛好订制 - 节点 JSON/YAML 转小火箭单行导出工具（支持批量）</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      color: #fff;
+      overflow-x: hidden;
+      background: linear-gradient(270deg, #ff4e50, #fc913a, #f9d423, #ede574, #e1f5c4);
+      background-size: 1000% 1000%;
+      animation: backgroundShift 20s ease infinite;
+    }
+    @keyframes backgroundShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    .container {
+      max-width: 950px;
+      margin: auto;
+      background: rgba(0,0,0,0.6);
+      padding: 40px;
+      border-radius: 20px;
+      box-shadow: 0 6px 25px rgba(0,0,0,0.5);
+      position: relative;
+      z-index: 1;
+    }
+    h1 {
+      text-align: center;
+      font-size: 40px;
+      font-weight: bold;
+      background: linear-gradient(90deg, #ff6a00, #ee0979, #ff6a00);
+      background-size: 200% 200%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: shine 3s linear infinite;
+      margin-bottom: 20px;
+      text-shadow: 0 0 20px rgba(255,255,255,0.6);
+    }
+    @keyframes shine {
+      0% { background-position: 0% 50%; }
+      100% { background-position: 200% 50%; }
+    }
+    label { display: block; margin-top: 15px; font-weight: bold; color: #eee; }
+    textarea, input, select {
+      width: 100%; padding: 12px; margin-top: 8px;
+      border-radius: 10px; border: 1px solid #666;
+      font-family: monospace; font-size: 14px; box-sizing: border-box;
+      background: rgba(255,255,255,0.9); color: #000;
+    }
+    button {
+      display: inline-block; width: 48%; margin-top: 20px;
+      padding: 14px; border: none;
+      background: linear-gradient(135deg, #ff416c, #ff4b2b);
+      color: white; font-size: 16px; font-weight: bold;
+      border-radius: 12px; cursor: pointer; transition: 0.3s; text-align: center;
+    }
+    button:hover { transform: scale(1.05); }
+    .clear-btn { background: linear-gradient(135deg, #8e2de2, #4a00e0); }
+    .output { margin-top: 25px; background: rgba(255,255,255,0.9); padding: 20px; border-radius: 12px; color: #000; }
+    textarea#output, textarea#batchOutput { border: none; resize: none; }
+    .copy-btn { margin-top: 10px; padding: 8px; width: 100%; border: none; border-radius: 8px; background-color: #2196F3; color: #fff; font-size: 14px; cursor: pointer; transition: 0.3s; }
+    .copy-btn:hover { background-color: #1976D2; }
+    #preview, #batchPreview { margin-top: 20px; padding: 15px; border-radius: 10px; background: #222; border: 1px solid #444; font-family: monospace; font-size: 14px; white-space: pre-line; color: #0f0; }
+    canvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 0;
+      pointer-events: none;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+</head>
+<body>
+  <canvas id="starfield"></canvas>
+  <div class="container">
+    <h1>✨ 媛媛好订制 ✨</h1>
+    <p style="text-align:center;color:#ddd">专属霸气闪亮工具 · JSON/YAML 节点一键转小火箭</p>
+
+    <label>单个节点 JSON 或 YAML 输入：</label>
+    <textarea id="inputText" rows="10" placeholder='粘贴 JSON 或 YAML 单个节点配置...'></textarea>
+
+    <label>协议类型（可留空自动识别）：</label>
+    <select id="protocol">
+      <option value="">自动识别</option>
+      <option value="vless">VLESS</option>
+      <option value="vmess">VMess</option>
+      <option value="trojan">Trojan</option>
+      <option value="ss">Shadowsocks</option>
+      <option value="hy2">Hysteria2</option>
+    </select>
+
+    <label>手动修改节点备注名（可选）：</label>
+    <input id="customTag" type="text" placeholder="例如：美国-01 | 手动修改" />
+
+    <div class="btn-group">
+      <button onclick="processInput()">✨ 生成单个节点</button>
+      <button class="clear-btn" onclick="clearAll()">🧹 清除内容</button>
+    </div>
+
+    <div id="preview" style="display:none;"></div>
+
+    <div class="output">
+      <label>输出结果（单个）：</label>
+      <textarea id="output" rows="4" readonly></textarea>
+      <button class="copy-btn" onclick="copyOutput('output')">📋 复制到剪贴板</button>
+    </div>
+
+    <hr style="border:1px solid #666;margin:30px 0;">
+
+    <label>批量 YAML/JSON 节点输入：</label>
+    <textarea id="batchInput" rows="10" placeholder='粘贴多个 YAML/JSON 节点配置...（支持 - {...} 列表/多行 JSON/YAML）'></textarea>
+
+    <div class="btn-group">
+      <button onclick="processBatch()">🚀 批量转换</button>
+      <button class="clear-btn" onclick="clearBatch()">🧹 清除批量</button>
+    </div>
+
+    <div class="output">
+      <label>输出结果（批量）：</label>
+      <textarea id="batchOutput" rows="10" readonly></textarea>
+      <button class="copy-btn" onclick="copyOutput('batchOutput')">📋 复制全部结果</button>
+    </div>
+
+    <div id="batchPreview" style="display:none;"></div>
+  </div>
+
+  <script>
+    // ============ 星空 + 鼠标粒子 ============
+    const canvas = document.getElementById('starfield');
+    const ctx = canvas.getContext('2d');
+    function resizeCanvas(){
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    const stars = [];
+    for (let i=0;i<140;i++){
+      stars.push({
+        x: Math.random()*canvas.width,
+        y: Math.random()*canvas.height,
+        r: Math.random()*1.8+0.2,
+        d: Math.random()*1.2+0.2
+      });
+    }
+
+    const particles = []; // 鼠标粒子
+
+    document.addEventListener('mousemove', (e)=>{
+      for (let i=0;i<3;i++){
+        particles.push({
+          x: e.clientX + (Math.random()-0.5)*8,
+          y: e.clientY + (Math.random()-0.5)*8,
+          dx: (Math.random()-0.5)*1.6,
+          dy: (Math.random()-0.5)*1.6 - 0.5,
+          life: 50 + Math.floor(Math.random()*40),
+          r: 1 + Math.random()*2,
+          hue: Math.floor(Math.random()*360)
+        });
+      }
+    });
+
+    function draw() {
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+
+      // stars
+      stars.forEach(s=>{
+        ctx.beginPath();
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = 'rgba(255,255,255,0.9)';
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+        ctx.fill();
+        s.y += s.d;
+        if (s.y > canvas.height) { s.y = 0; s.x = Math.random()*canvas.width; }
+      });
+
+      // particles
+      for (let i = particles.length - 1; i >= 0; i--){
+        const p = particles[i];
+        ctx.beginPath();
+        ctx.fillStyle = `hsla(${p.hue}, 100%, 70%, ${Math.max(0,p.life/80)})`;
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+        ctx.fill();
+        p.x += p.dx;
+        p.y += p.dy;
+        p.life--;
+        if (p.life <= 0) particles.splice(i,1);
+      }
+
+      requestAnimationFrame(draw);
+    }
+    requestAnimationFrame(draw);
+
+    // ============ 辅助 base64 / 解析函数 ============
+    function safeB64Decode(s){
+      // 支持 url-safe base64
+      try {
+        s = s.replace(/-/g,'+').replace(/_/g,'/');
+        while (s.length % 4) s += '=';
+        return decodeURIComponent(escape(atob(s)));
+      } catch(e){
+        try { return atob(s); } catch(e2) { return s; }
+      }
+    }
+    function safeB64Encode(s){
+      try {
+        return btoa(unescape(encodeURIComponent(s)));
+      } catch(e) {
+        return btoa(s);
+      }
+    }
+
+    // 从 ss:// 或其他链接反解析成多行字符串（用于 preview）
+    function parseNodeFromURL(url) {
+      if (!url) return '';
+      try {
+        if (url.startsWith('ss://')) {
+          // 支持两种常见格式：
+          // 1) ss://BASE@host:port#tag  (BASE = base64(method:password) )
+          // 2) ss://BASE  (BASE 解码后为 method:password@host:port 或包含 plugin)
+          const withoutPrefix = url.slice(5);
+          const hashSplit = withoutPrefix.split('#');
+          const tag = decodeURIComponent(hashSplit[1] || '') || '未命名节点';
+          const main = hashSplit[0];
+
+          let userinfoEnc, hostPart;
+          if (main.includes('@')) {
+            // pattern: BASE@host:port[/?plugin=...]
+            [userinfoEnc, hostPart] = main.split('@');
+          } else {
+            // pattern: BASE  (BASE 解码后包含 userinfo@host:port)
+            userinfoEnc = main;
+            const decoded = safeB64Decode(userinfoEnc);
+            const atIdx = decoded.indexOf('@');
+            if (atIdx === -1) return url; // 无法解析
+            userinfoEnc = safeB64Encode(decoded.slice(0, atIdx)); // encode back to base64-ish for parsing
+            hostPart = decoded.slice(atIdx+1);
+          }
+
+          const userinfo = safeB64Decode(userinfoEnc);
+          const colonIdx = userinfo.indexOf(':');
+          const method = colonIdx>=0 ? userinfo.slice(0,colonIdx) : '';
+          const password = colonIdx>=0 ? userinfo.slice(colonIdx+1) : '';
+
+          // hostPart 可能包含 /?plugin=...
+          let server = hostPart;
+          let port = '';
+          let plugin = '';
+          if (hostPart.includes('/?')) {
+            const [hostPort, query] = hostPart.split('/?');
+            server = hostPort.split(':')[0] || '';
+            port = hostPort.split(':')[1] || '';
+            // query 可能是 plugin=xxx%3Bopts...
+            if (query.startsWith('plugin=')) {
+              const pluginRaw = decodeURIComponent(query.slice(7));
+              const [pname, ...opts] = pluginRaw.split(';');
+              plugin = pname + (opts.length ? ';' + opts.join(';') : '');
+            }
+          } else {
+            server = hostPart.split(':')[0] || '';
+            port = hostPart.split(':')[1] || '';
+            // 也可能含有 ?参数
+            if (port && port.includes('?')) {
+              port = port.split('?')[0];
+            }
+          }
+
+          return `名称: ${tag}\n协议: ss\n服务器: ${server}\n端口: ${port}\n加密: ${method}\n密码: ${password}${plugin?'\n插件: '+plugin:''}`;
+        }
+
+        // vmess: 解 base64 JSON（尽量展示常用字段）
+        if (url.startsWith('vmess://')) {
+          const b = url.slice(8);
+          const json = safeB64Decode(b);
+          try {
+            const obj = JSON.parse(json);
+            return `名称: ${obj.ps || ''}\n协议: vmess\n服务器: ${obj.add || ''}\n端口: ${obj.port || ''}\nUUID: ${obj.id || ''}\n额外ID: ${obj.aid || ''}\n传输: ${obj.net || ''}\n路径: ${obj.path || ''}\nTLS: ${obj.tls || ''}`;
+          } catch(e){
+            return url;
+          }
+        }
+
+        // vless: 解析 query
+        if (url.startsWith('vless://')) {
+          const rest = url.slice(8);
+          // pattern: vless://uuid@host:port?k=v&..#tag
+          const hashIdx = rest.indexOf('#');
+          const tag = hashIdx>=0 ? decodeURIComponent(rest.slice(hashIdx+1)) : '';
+          const qIdx = rest.indexOf('?');
+          const main = qIdx>=0 ? rest.slice(0,qIdx) : (hashIdx>=0 ? rest.slice(0,hashIdx) : rest);
+          const afterQ = qIdx>=0 ? (hashIdx>=0 ? rest.slice(qIdx+1,hashIdx) : rest.slice(qIdx+1)) : '';
+          const hostPart = main.split('@')[1] || '';
+          const host = hostPart.split(':')[0] || '';
+          const port = hostPart.split(':')[1] || '';
+          const params = {};
+          if (afterQ) {
+            afterQ.split('&').forEach(p=>{
+              const kv = p.split('=');
+              if (kv[0]) params[kv[0]] = kv[1] || '';
+            });
+          }
+          return `名称: ${tag}\n协议: vless\n服务器: ${host}\n端口: ${port}\nUUID: ${main.split('@')[0]}\n参数: ${Object.keys(params).length?JSON.stringify(params):''}`;
+        }
+
+        // trojan
+        if (url.startsWith('trojan://')) {
+          const rest = url.slice(9);
+          const hashIdx = rest.indexOf('#');
+          const tag = hashIdx>=0 ? decodeURIComponent(rest.slice(hashIdx+1)) : '';
+          const main = hashIdx>=0 ? rest.slice(0,hashIdx) : rest;
+          const atIdx = main.indexOf('@');
+          const password = atIdx>=0 ? main.slice(0,atIdx) : '';
+          const hostPart = atIdx>=0 ? main.slice(atIdx+1) : '';
+          const host = hostPart.split(':')[0] || '';
+          const port = hostPart.split(':')[1] || '';
+          return `名称: ${tag}\n协议: trojan\n服务器: ${host}\n端口: ${port}\n密码: ${password}`;
+        }
+
+        // hysteria2 etc - 返回原样
+        return url;
+      } catch(e){
+        return url;
+      }
+    }
+
+    // ============ 协议识别 / 规范化 / 生成 ============
+    function detectProtocol(node) {
+      if (!node) return 'vless';
+      if (typeof node === 'string') {
+        const s = node.trim();
+        if (s.startsWith('ss://')) return 'ss';
+        if (s.startsWith('vmess://')) return 'vmess';
+        if (s.startsWith('vless://')) return 'vless';
+        if (s.startsWith('trojan://')) return 'trojan';
+        if (s.startsWith('hysteria2://') || s.startsWith('hy2://')) return 'hy2';
+      }
+      if (node.type && node.type.toLowerCase() === 'ss') return 'ss';
+      if (node.method && node.password) return 'ss';
+      if (node.type && node.type.toLowerCase() === 'trojan') return 'trojan';
+      if (node.type && node.type.toLowerCase() === 'vmess') return 'vmess';
+      if (node.type && node.type.toLowerCase() === 'hysteria2') return 'hy2';
+      if (node.uuid) return 'vless';
+      return 'vless';
+    }
+
+    // 当 node 是字符串链接时，尝试解析成对象（支持 ss:// vmess:// vless:// trojan://）
+    function parseNodeStringToObject(s){
+      if (!s || typeof s !== 'string') return null;
+      s = s.trim();
+      try {
+        if (s.startsWith('ss://')) {
+          // 解析 ss
+          const without = s.slice(5);
+          const hashSplit = without.split('#');
+          const tag = decodeURIComponent(hashSplit[1] || '') || undefined;
+          const main = hashSplit[0];
+          let userEnc, hostPart;
+          if (main.includes('@')) {
+            [userEnc, hostPart] = main.split('@');
+          } else {
+            // main is base64 that decodes to user:pass@host:port
+            const decoded = safeB64Decode(main);
+            const atIdx = decoded.indexOf('@');
+            if (atIdx === -1) return { raw: s };
+            userEnc = safeB64Encode(decoded.slice(0, atIdx));
+            hostPart = decoded.slice(atIdx+1);
+          }
+          const userinfo = safeB64Decode(userEnc);
+          const [method, password] = userinfo.split(':');
+          // hostPart may contain /?plugin=...
+          let server = hostPart.split('/')[0];
+          if (server.includes('?')) server = server.split('?')[0];
+          const port = server.split(':')[1] || '';
+          const host = server.split(':')[0] || '';
+          return {
+            name: tag,
+            type: 'ss',
+            server: host,
+            port: port,
+            password: password,
+            method: method
+          };
+        }
+
+        if (s.startsWith('vmess://')) {
+          const b = s.slice(8);
+          const json = safeB64Decode(b);
+          try { return JSON.parse(json); } catch(e){ return { raw: s }; }
+        }
+
+        if (s.startsWith('vless://')) {
+          return { raw: s }; // minimal handling
+        }
+
+        if (s.startsWith('trojan://')) {
+          return { raw: s }; // minimal
+        }
+      } catch(e){
+        return { raw: s };
+      }
+      return null;
+    }
+
+    function normalizeNode(node){
+      // If node is a string that looks like a link, try to parse it into an object
+      if (typeof node === 'string') {
+        const parsed = parseNodeStringToObject(node);
+        if (parsed) return parsed;
+      }
+      return {
+        tag: node.name || node.tag || "未命名节点",
+        type: node.type || "vless",
+        uuid: node.uuid || "",
+        server: node.server || node.add || "",
+        server_port: node.port || node.server_port || node.p || "",
+        password: node.password || node.pass || "",
+        // prefer method, then cipher (ss2022 often in cipher)
+        method: node.method || node.cipher || "",
+        security: node.tls?.enabled ? "tls" : (node.security || "none"),
+        transport: {
+          type: node.transport?.type || node.network || node.net || "tcp",
+          path: node.transport?.path || node["ws-opts"]?.path || "",
+          headers: node.transport?.headers || { Host: node.host || "" }
+        },
+        aid: node.aid || node.alterId || "0",
+        flow: node.flow || "",
+        tls: node.tls || {},
+        plugin: node.plugin || "",
+        plugin_opts: node.plugin_opts || ""
+      };
+    }
+
+    function convertNode(input, tagOverride=""){
+      let protocol = document.getElementById('protocol')?.value || "";
+      if (!protocol) protocol = detectProtocol(input);
+      let tag = tagOverride || document.getElementById('customTag')?.value.trim() || input.tag || input.name || "未命名节点";
+      let url = '';
+
+      if (protocol === 'ss') {
+        // method may contain ":" (ss2022 e.g. "2022-blake3-aes-256-gcm:KEY")
+        const method = input.method || input.cipher || '';
+        const password = input.password || input.pass || '';
+        const userinfo = `${method}:${password}`;
+        const base = safeB64Encode(userinfo);
+        let pluginStr = '';
+        if (input.plugin) {
+          pluginStr = `/?plugin=${encodeURIComponent(input.plugin)}`;
+          if (input.plugin_opts) pluginStr += `%3B${encodeURIComponent(input.plugin_opts)}`;
+        }
+        url = `ss://${base}@${input.server}:${input.server_port}${pluginStr}#${encodeURIComponent(tag)}`;
+      }
+      else if (protocol === 'vless') {
+        let extra = '';
+        if (input.flow) extra += `&flow=${input.flow}`;
+        if (input.security === 'tls') {
+          extra = `security=tls`;
+          if (input.tls?.server_name) extra += `&sni=${input.tls.server_name}`;
+        }
+        if (extra.startsWith('&')) extra = extra.slice(1);
+        url = `vless://${input.uuid}@${input.server}:${input.server_port}${extra?('?'+extra):''}#${encodeURIComponent(tag)}`;
+      }
+      else if (protocol === 'vmess') {
+        const node = {
+          v: "2",
+          ps: tag,
+          add: input.server,
+          port: input.server_port,
+          id: input.uuid,
+          aid: input.aid || "0",
+          net: input.transport?.type || "tcp",
+          type: "none",
+          host: input.transport?.headers?.Host || "",
+          path: input.transport?.path || "/",
+          tls: input.security || ""
+        };
+        url = `vmess://${safeB64Encode(JSON.stringify(node))}`;
+      }
+      else if (protocol === 'trojan') {
+        url = `trojan://${input.password}@${input.server}:${input.server_port}#${encodeURIComponent(tag)}`;
+      }
+      else if (protocol === 'hy2') {
+        url = `hysteria2://${input.password}@${input.server}:${input.server_port}/#${encodeURIComponent(tag)}`;
+      }
+      return url;
+    }
+
+    // ============ 批量输入解析（更鲁棒） ============
+    // 尝试把文本解析为数组对象（支持 JSON 数组、YAML 列表、每行单个 JSON、以 "- {...}" 的 YAML 列表）
+    function parseBatchTextToArray(text){
+      text = text.trim();
+      if (!text) return [];
+      // 1) 尝试整体 JSON.parse
+      try {
+        const j = JSON.parse(text);
+        if (Array.isArray(j)) return j;
+        if (typeof j === 'object') return [j];
+      } catch(e){}
+      // 2) 尝试 yaml.load（可以处理 - {...} 的列表）
+      try {
+        const y = jsyaml.load(text);
+        if (Array.isArray(y)) return y;
+        if (typeof y === 'object') return [y];
+      } catch(e){}
+
+      // 3) 尝试按行提取花括号内的 JSON 子串（处理 - {...} 或每行 {...}）
+      const objs = [];
+      let i = 0;
+      while (i < text.length) {
+        // 找下一个 '{'
+        const start = text.indexOf('{', i);
+        if (start === -1) break;
+        let depth = 0;
+        let j = start;
+        let found = false;
+        for (; j < text.length; j++) {
+          if (text[j] === '{') depth++;
+          else if (text[j] === '}') {
+            depth--;
+            if (depth === 0) { found = true; j++; break; }
+          }
+        }
+        if (found) {
+          const piece = text.slice(start, j);
+          try {
+            const parsed = JSON.parse(piece);
+            objs.push(parsed);
+          } catch (e) {
+            // 最后尝试 yaml 单条解析
+            try {
+              const parsedYaml = jsyaml.load(piece);
+              if (parsedYaml) objs.push(parsedYaml);
+            } catch(e2) {
+              // 忽略无法解析的片段
+            }
+          }
+          i = j;
+        } else break;
+      }
+      if (objs.length) return objs;
+
+      // 4) 按行逐行尝试解析（每行可能是 JSON 或 YAML）
+      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      for (const line of lines) {
+        let l = line;
+        if (l.startsWith('- ')) l = l.slice(2).trim();
+        // 尝试 JSON.parse
+        try {
+          const p = JSON.parse(l);
+          objs.push(p);
+          continue;
+        } catch(e){}
+        // 尝试 YAML parse single line
+        try {
+          const p = jsyaml.load(l);
+          if (p) objs.push(p);
+          continue;
+        } catch(e){}
+        // 尝试解析为链接（ss:// vmess:// ...）
+        if (l.startsWith('ss://') || l.startsWith('vmess://') || l.startsWith('vless://') || l.startsWith('trojan://')) {
+          objs.push(l);
+          continue;
+        }
+      }
+      if (objs.length) return objs;
+
+      // 5) 无法解析
+      throw new Error('无法识别批量输入格式，请确认是 JSON 数组 / YAML 列表 / 每行 JSON 或 - {...} 列表。');
+    }
+
+    // ============ 主流程 ============
+    function processInput(){
+      let text = document.getElementById('inputText').value.trim();
+      if (!text) { alert('请输入内容！'); return; }
+      let node;
+      try { node = JSON.parse(text); }
+      catch {
+        try { const parsed = jsyaml.load(text); node = Array.isArray(parsed)?parsed[0]:parsed; }
+        catch {
+          // 如果仍然无法解析，允许传入单个链接字符串（如 ss://...）
+          node = text;
+        }
+      }
+      const normalized = normalizeNode(node);
+      const url = convertNode(normalized);
+      document.getElementById('output').value = url;
+      document.getElementById('preview').style.display = 'block';
+      // 如果是 ss 链接，展示解析后的参数（server/port/method/password），否则展示常规 parse
+      document.getElementById('preview').textContent = parseNodeFromURL(url);
+    }
+
+    function processBatch(){
+      let text = document.getElementById('batchInput').value.trim();
+      if (!text) { alert('请输入批量节点 YAML/JSON！'); return; }
+      let nodes;
+      try {
+        nodes = parseBatchTextToArray(text);
+      } catch (e) {
+        alert('批量输入解析失败：' + e.message);
+        return;
+      }
+      // normalize each (如果是链接字符串，normalizeNode 会尝试解析)
+      const normalizedArr = nodes.map(n => normalizeNode(n));
+      const results = normalizedArr.map((n, idx) => convertNode(n, n.name || n.tag || (`节点${idx+1}`)));
+      document.getElementById('batchOutput').value = results.join("\n\n");
+      // batch preview: 对 ss 做反解析并显示参数，其他协议显示解析信息或原链接
+      const previews = results.map(u => parseNodeFromURL(u));
+      document.getElementById('batchPreview').style.display = 'block';
+      document.getElementById('batchPreview').textContent = previews.join("\n\n");
+    }
+
+    function copyOutput(id){
+      const output = document.getElementById(id);
+      output.select();
+      document.execCommand('copy');
+      alert('已复制到剪贴板！');
+    }
+
+    function clearAll(){
+      document.getElementById('inputText').value='';
+      document.getElementById('protocol').value='';
+      document.getElementById('customTag').value='';
+      document.getElementById('output').value='';
+      document.getElementById('preview').style.display='none';
+    }
+
+    function clearBatch(){
+      document.getElementById('batchInput').value='';
+      document.getElementById('batchOutput').value='';
+      document.getElementById('batchPreview').style.display='none';
+    }
+  </script>
+</body>
+</html>
