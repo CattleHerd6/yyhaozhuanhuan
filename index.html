@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>媛媛好订制 - 节点 JSON/YAML 转小火箭单行导出工具（支持批量）</title>
+  <style>
+    :root {
+      --primary-gradient: linear-gradient(135deg, #FF9AA2, #FFB7B2);
+      --secondary-gradient: linear-gradient(135deg, #B5EAD7, #C7CEEA);
+      --accent-gradient: linear-gradient(135deg, #FFDAC1, #E2F0CB);
+      --glass-bg: rgba(255, 255, 255, 0.25);
+      --glass-border: rgba(255, 255, 255, 0.4);
+      --glass-shadow: rgba(181, 234, 215, 0.2);
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      color: #5D4037;
+      overflow-x: hidden;
+      background: linear-gradient(135deg, #FFDAC1 0%, #B5EAD7 50%, #C7CEEA 100%);
+      background-attachment: fixed;
+      min-height: 100vh;
+      padding: 15px;
+      cursor: none;
+    }
+    
+    .app-container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 20px;
+      position: relative;
+      z-index: 10;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 25px;
+      position: relative;
+    }
+    
+    .title {
+      font-size: 2.8rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #FF9AA2, #FFB7B2, #B5EAD7);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+      text-shadow: 2px 2px 4px rgba(255, 154, 162, 0.2);
+    }
+    
+    .subtitle {
+      color: #7E8D85;
+      font-size: 1.1rem;
+      font-weight: 400;
+      margin-bottom: 15px;
+    }
+    
+    .glass-card {
+      background: var(--glass-bg);
+      backdrop-filter: blur(15px);
+      border: 1px solid var(--glass-border);
+      border-radius: 18px;
+      padding: 25px;
+      margin-bottom: 20px;
+      box-shadow: 0 6px 20px var(--glass-shadow);
+      transition: all 0.3s ease;
+    }
+    
+    .glass-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 30px rgba(181, 234, 215, 0.3);
+    }
+    
+    .card-title {
+      font-size: 1.6rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+      color: #5D4037;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .card-title::before {
+      content: '✨';
+      font-size: 1.3rem;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 10px;
+      font-weight: 500;
+      color: #7E8D85;
+      font-size: 1rem;
+    }
+    
+    textarea, input, select {
+      width: 100%;
+      padding: 14px 18px;
+      border-radius: 12px;
+      border: 2px solid rgba(255, 255, 255, 0.6);
+      background: rgba(255, 255, 255, 0.8);
+      color: #5D4037;
+      font-size: 0.95rem;
+      font-family: 'Fira Code', 'Consolas', monospace;
+      transition: all 0.3s ease;
+      resize: vertical;
+    }
+    
+    textarea:focus, input:focus, select:focus {
+      outline: none;
+      border-color: #FF9AA2;
+      box-shadow: 0 0 15px rgba(255, 154, 162, 0.3);
+      background: rgba(255, 255, 255, 0.95);
+    }
+    
+    textarea {
+      min-height: 100px;
+      line-height: 1.5;
+    }
+    
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+    
+    .btn {
+      flex: 1;
+      min-width: 180px;
+      padding: 16px 25px;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: none;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+      text-align: center;
+    }
+    
+    .btn-primary {
+      background: var(--primary-gradient);
+      color: #5D4037;
+    }
+    
+    .btn-secondary {
+      background: var(--secondary-gradient);
+      color: #5D4037;
+    }
+    
+    .btn:hover {
+      transform: translateY(-2px) scale(1.03);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    }
+    
+    .output-area {
+      background: rgba(255, 255, 255, 0.7);
+      border-radius: 12px;
+      padding: 18px;
+      margin-top: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.8);
+    }
+    
+    .output-text {
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 8px;
+      padding: 12px;
+      font-family: 'Fira Code', 'Consolas', monospace;
+      color: #4CAF50;
+      min-height: 80px;
+      max-height: 250px;
+      overflow-y: auto;
+      border: 1px solid rgba(76, 175, 80, 0.3);
+      white-space: pre-wrap;
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+    
+    .copy-btn {
+      margin-top: 12px;
+      padding: 10px 20px;
+      background: var(--accent-gradient);
+      color: #5D4037;
+      border: none;
+      border-radius: 8px;
+      cursor: none;
+      transition: all 0.3s ease;
+      width: 100%;
+      font-weight: 500;
+    }
+    
+    .copy-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(255, 218, 193, 0.4);
+    }
+    
+    .node-info {
+      background: rgba(255, 255, 255, 0.8);
+      border-radius: 12px;
+      padding: 15px;
+      margin-top: 15px;
+      border: 1px solid rgba(76, 175, 80, 0.3);
+      display: none;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    
+    .node-info-item {
+      margin-bottom: 10px;
+      padding: 8px;
+      background: rgba(245, 245, 245, 0.8);
+      border-radius: 6px;
+      border-left: 3px solid #FF9AA2;
+    }
+    
+    .node-info-label {
+      font-weight: 600;
+      color: #5D4037;
+      margin-right: 8px;
+    }
+    
+    .node-info-value {
+      color: #4CAF50;
+      font-family: 'Fira Code', 'Consolas', monospace;
+      font-size: 0.9rem;
+    }
+    
+    .divider {
+      height: 2px;
+      background: linear-gradient(90deg, transparent, rgba(255, 154, 162, 0.4), transparent);
+      margin: 25px 0;
+      position: relative;
+    }
+    
+    .divider::before {
+      content: '⚡';
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--primary-gradient);
+      padding: 4px 12px;
+      border-radius: 15px;
+      font-size: 1rem;
+    }
+    
+    .tab-container {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 15px;
+    }
+    
+    .tab {
+      padding: 10px 20px;
+      background: rgba(255, 255, 255, 0.6);
+      border-radius: 8px 8px 0 0;
+      cursor: none;
+      transition: all 0.3s ease;
+      font-weight: 500;
+    }
+    
+    .tab.active {
+      background: var(--primary-gradient);
+      color: white;
+    }
+    
+    .tab-content {
+      display: none;
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    .stats {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 20px;
+      padding: 15px;
+      background: rgba(255, 255, 255, 0.6);
+      border-radius: 12px;
+      gap: 15px;
+    }
+    
+    .stat-item {
+      text-align: center;
+      flex: 1;
+    }
+    
+    .stat-number {
+      font-size: 1.5rem;
+      font-weight: 700;
+      background: var(--primary-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    .stat-label {
+      color: #7E8D85;
+      font-size: 0.85rem;
+    }
+    
+    /* 鼠标拖尾效果 */
+    .cursor-trail {
+      position: fixed;
+      pointer-events: none;
+      z-index: 9999;
+      transition: transform 0.1s ease;
+    }
+    
+    .sparkle-trail {
+      width: 20px;
+      height: 20px;
+      background: radial-gradient(circle, #FF9AA2 20%, transparent 70%);
+      border-radius: 50%;
+      animation: sparkleTrail 1.5s forwards;
+      box-shadow: 0 0 15px rgba(255, 154, 162, 0.5);
+    }
+    
+    .ribbon-trail {
+      width: 40px;
+      height: 8px;
+      background: linear-gradient(90deg, #FF9AA2, #B5EAD7, #C7CEEA);
+      border-radius: 4px;
+      animation: ribbonTrail 2s forwards;
+      opacity: 0.8;
+    }
+    
+    .star-trail {
+      width: 16px;
+      height: 16px;
+      background: radial-gradient(circle, #FFDAC1 30%, transparent 70%);
+      border-radius: 50%;
+      animation: starTrail 2s forwards;
+      box-shadow: 0 0 12px rgba(255, 218, 193, 0.6);
+    }
+    
+    @keyframes sparkleTrail {
+      0% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1) rotate(0deg);
+      }
+      100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.1) rotate(720deg);
+      }
+    }
+    
+    @keyframes ribbonTrail {
+      0% {
+        opacity: 0.8;
+        transform: translate(-50%, -50%) rotate(0deg) scale(1);
+      }
+      100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) rotate(180deg) scale(0.3);
+      }
+    }
+    
+    @keyframes starTrail {
+      0% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+      }
+      100% {
+        opacity: 0;
+        transform: translate(
+          calc(-50% + (Math.random() - 0.5) * 100px),
+          calc(-50% + (Math.random() - 0.5) * 100px)
+        ) scale(0.1);
+      }
+    }
+    
+    .custom-cursor {
+      position: fixed;
+      width: 8px;
+      height: 8px;
+      background: #FF9AA2;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 10000;
+      transition: transform 0.1s ease;
+      box-shadow: 0 0 10px rgba(255, 154, 162, 0.8);
+    }
+    
+    .cursor-ring {
+      position: fixed;
+      width: 35px;
+      height: 35px;
+      border: 2px solid rgba(255, 154, 162, 0.6);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 10000;
+      transition: all 0.2s ease-out;
+    }
+    
+    /* 成功动画 */
+    .success-animation {
+      animation: successPulse 0.4s ease-in-out;
+    }
+    
+    @keyframes successPulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+    
+    /* 响应式设计 */
+    @media (max-width: 768px) {
+      .app-container {
+        padding: 15px;
+      }
+      
+      .title {
+        font-size: 2.2rem;
+      }
+      
+      .glass-card {
+        padding: 20px;
+        margin-bottom: 15px;
+      }
+      
+      .btn-group {
+        flex-direction: column;
+      }
+      
+      .btn {
+        min-width: 100%;
+      }
+      
+      .stats {
+        flex-direction: column;
+        gap: 12px;
+      }
+      
+      body {
+        cursor: auto;
+      }
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+</head>
+<body>
+  <div class="custom-cursor" id="customCursor"></div>
+  <div class="cursor-ring" id="cursorRing"></div>
+  
+  <div class="app-container">
+    <div class="header">
+      <h1 class="title">✨ 媛媛好订制 ✨</h1>
+      <p class="subtitle">专属马卡龙风格工具 · JSON/YAML 节点一键转小火箭</p>
+    </div>
+
+    <div class="tab-container">
+      <div class="tab active" onclick="switchTab('single')">单个转换</div>
+      <div class="tab" onclick="switchTab('batch')">批量转换</div>
+    </div>
+
+    <!-- 单个转换 -->
+    <div class="tab-content active" id="single-tab">
+      <div class="glass-card">
+        <h2 class="card-title">单个节点转换</h2>
+        
+        <div class="form-group">
+          <label>节点 JSON 或 YAML 输入：</label>
+          <textarea id="inputText" rows="6" placeholder='粘贴 JSON 或 YAML 单个节点配置...'></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>协议类型：</label>
+          <select id="protocol">
+            <option value="">自动识别</option>
+            <option value="vless">VLESS</option>
+            <option value="vmess">VMess</option>
+            <option value="trojan">Trojan</option>
+            <option value="ss">Shadowsocks</option>
+            <option value="hy2">Hysteria2</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>节点备注名：</label>
+          <input id="customTag" type="text" placeholder="例如：美国-01 | 手动修改" />
+        </div>
+
+        <div class="btn-group">
+          <button class="btn btn-primary" onclick="processInput()">
+            🚀 生成单个节点
+          </button>
+          <button class="btn btn-secondary" onclick="clearAll()">
+            🧹 清除内容
+          </button>
+        </div>
+
+        <div class="output-area">
+          <label>输出结果：</label>
+          <div class="output-text" id="output"></div>
+          <button class="copy-btn" onclick="copyOutput('output')">
+            📋 复制到剪贴板
+          </button>
+        </div>
+
+        <div class="node-info" id="nodeInfo"></div>
+      </div>
+    </div>
+
+    <!-- 批量转换 -->
+    <div class="tab-content" id="batch-tab">
+      <div class="glass-card">
+        <h2 class="card-title">批量节点转换</h2>
+        
+        <div class="form-group">
+          <label>批量节点输入：</label>
+          <textarea id="batchInput" rows="6" placeholder='粘贴多个 YAML/JSON 节点配置...（支持 - {...} 列表/多行 JSON/YAML）'></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>批量协议类型：</label>
+          <select id="batchProtocol">
+            <option value="">自动识别</option>
+            <option value="vless">VLESS</option>
+            <option value="vmess">VMess</option>
+            <option value="trojan">Trojan</option>
+            <option value="ss">Shadowsocks</option>
+            <option value="hy2">Hysteria2</option>
+          </select>
+        </div>
+
+        <div class="btn-group">
+          <button class="btn btn-primary" onclick="processBatch()">
+            ⚡ 批量转换
+          </button>
+          <button class="btn btn-secondary" onclick="clearBatch()">
+            🧹 清除批量
+          </button>
+        </div>
+
+        <div class="output-area">
+          <label>批量输出结果：</label>
+          <div class="output-text" id="batchOutput"></div>
+          <button class="copy-btn" onclick="copyOutput('batchOutput')">
+            📋 复制全部结果
+          </button>
+        </div>
+
+        <div class="node-info" id="batchNodeInfo"></div>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat-item">
+        <div class="stat-number" id="totalConverted">0</div>
+        <div class="stat-label">总转换次数</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number" id="successRate">100%</div>
+        <div class="stat-label">成功率</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number" id="activeUsers">1</div>
+        <div class="stat-label">当前用户</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ========= 鼠标拖尾效果 =========
+    const cursor = document.getElementById('customCursor');
+    const cursorRing = document.getElementById('cursorRing');
+    let mouseX = 0;
+    let mouseY = 0;
+    let ringX = 0;
+    let ringY = 0;
+
+    function moveCursor(e) {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+      cursor.style.left = mouseX + 'px';
+      cursor.style.top = mouseY + 'px';
+    }
+
+    function moveCursorRing() {
+      const diffX = mouseX - ringX;
+      const diffY = mouseY - ringY;
+      ringX += diffX * 0.15;
+      ringY += diffY * 0.15;
+      cursorRing.style.left = ringX + 'px';
+      cursorRing.style.top = ringY + 'px';
+      requestAnimationFrame(moveCursorRing);
+    }
+
+    function createSparkleTrail(x, y) {
+      const sparkle = document.createElement('div');
+      sparkle.className = 'cursor-trail sparkle-trail';
+      sparkle.style.left = x + 'px';
+      sparkle.style.top = y + 'px';
+      document.body.appendChild(sparkle);
+      
+      setTimeout(() => {
+        sparkle.remove();
+      }, 1500);
+    }
+
+    function createRibbonTrail(x, y) {
+      const ribbon = document.createElement('div');
+      ribbon.className = 'cursor-trail ribbon-trail';
+      ribbon.style.left = x + 'px';
+      ribbon.style.top = y + 'px';
+      document.body.appendChild(ribbon);
+      
+      setTimeout(() => {
+        ribbon.remove();
+      }, 2000);
+    }
+
+    function createStarTrail(x, y) {
+      const star = document.createElement('div');
+      star.className = 'cursor-trail star-trail';
+      star.style.left = x + 'px';
+      star.style.top = y + 'px';
+      document.body.appendChild(star);
+      
+      setTimeout(() => {
+        star.remove();
+      }, 2000);
+    }
+
+    function initMouseEffects() {
+      let lastTime = 0;
+      
+      document.addEventListener('mousemove', (e) => {
+        moveCursor(e);
+        
+        const now = Date.now();
+        if (now - lastTime > 50) {
+          lastTime = now;
+          
+          // 随机创建不同类型的拖尾效果
+          const effectType = Math.floor(Math.random() * 3);
+          switch(effectType) {
+            case 0:
+              createSparkleTrail(e.clientX + (Math.random() - 0.5) * 20, e.clientY + (Math.random() - 0.5) * 20);
+              break;
+            case 1:
+              createRibbonTrail(e.clientX, e.clientY);
+              break;
+            case 2:
+              createStarTrail(e.clientX + (Math.random() - 0.5) * 15, e.clientY + (Math.random() - 0.5) * 15);
+              break;
+          }
+        }
+      });
+
+      // 按钮悬停效果
+      const buttons = document.querySelectorAll('.btn, .copy-btn, .tab');
+      buttons.forEach(btn => {
+        btn.addEventListener('mouseenter', () => {
+          cursorRing.style.transform = 'scale(1.5)';
+          cursorRing.style.borderColor = '#FF9AA2';
+        });
+        
+        btn.addEventListener('mouseleave', () => {
+          cursorRing.style.transform = 'scale(1)';
+          cursorRing.style.borderColor = 'rgba(255, 154, 162, 0.6)';
+        });
+      });
+
+      moveCursorRing();
+    }
+
+    // ========= 核心功能函数 =========
+    function safeB64Decode(s){ try{ s=s.replace(/-/g,'+').replace(/_/g,'/'); while(s.length%4)s+='='; return decodeURIComponent(escape(atob(s))); }catch(e){ try{return atob(s);}catch(e2){return s;} } }
+    function safeB64Encode(s){ try{return btoa(unescape(encodeURIComponent(s)));}catch(e){return btoa(s);} }
+
+    function detectProtocol(node){
+      if(!node)return 'vless';
+      if(typeof node==='string'){const s=node.trim(); if(s.startsWith('ss://'))return 'ss'; if(s.startsWith('vmess://'))return 'vmess'; if(s.startsWith('vless://'))return 'vless'; if(s.startsWith('trojan://'))return 'trojan'; if(s.startsWith('hysteria2://')||s.startsWith('hy2://'))return 'hy2';}
+      if(node.type&&node.type.toLowerCase()==='ss')return 'ss';
+      if(node.method&&node.password)return 'ss';
+      if(node.type&&node.type.toLowerCase()==='trojan')return 'trojan';
+      if(node.type&&node.type.toLowerCase()==='vmess')return 'vmess';
+      if(node.type&&node.type.toLowerCase()==='hysteria2')return 'hy2';
+      if(node.uuid)return 'vless';
+      return 'vless';
+    }
+
+    function normalizeNode(node){
+      if(typeof node==='string'){ 
+        const parsed=parseNodeStringToObject(node); 
+        if(parsed)return parsed; 
+      }
+      
+      return {
+        tag:node.name||node.tag||"未命名节点",
+        type:node.type||"vless",
+        uuid:node.uuid||node.id||"",
+        server:node.server||node.address||node.add||"",
+        server_port:node.port||node.server_port||node.p||"",
+        password:node.password||node.pass||"",
+        method:node.method||node.cipher||"",
+        security:node.tls?.enabled?"tls":(node.security||"none"),
+        transport:{
+          type:node.network||node.net||node.transport?.type||"tcp",
+          path:node.path||node.transport?.path||node["ws-opts"]?.path||"",
+          headers:node.headers||node.transport?.headers||{Host:node.host||""},
+          max_early_data: node.transport?.max_early_data,
+          early_data_header_name: node.transport?.early_data_header_name
+        },
+        aid:node.aid||node.alterId||"0",
+        flow:node.flow||"",
+        tls:node.tls||{},
+        plugin:node.plugin||"",
+        plugin_opts:node.plugin_opts||"",
+        reality:node.tls?.reality||node.reality||null,
+        utls:node.tls?.utls||node.utls||null,
+        packet_encoding:node.packet_encoding||null
+      };
+    }
+
+    function parseNodeStringToObject(url) {
+      try {
+        if (url.startsWith('vmess://')) {
+          const content = safeB64Decode(url.substring(8));
+          return JSON.parse(content);
+        }
+      } catch (e) {
+        console.error("解析节点字符串失败:", e);
+      }
+      return null;
+    }
+
+    function convertNode(input,tagOverride=""){
+      let protocol=document.getElementById('protocol')?.value||"";
+      if(!protocol) protocol=detectProtocol(input);
+      let tag=tagOverride||document.getElementById('customTag')?.value.trim()||input.tag||input.name||"未命名节点";
+      let url='';
+
+      if(protocol==='ss'){
+        const method=input.method||input.cipher||'';
+        const password=input.password||input.pass||'';
+        const userinfo=`${method}:${password}`;
+        const base=safeB64Encode(userinfo);
+        let pluginStr='';
+        if(input.plugin){pluginStr=`/?plugin=${encodeURIComponent(input.plugin)}`; if(input.plugin_opts) pluginStr+=`%3B${encodeURIComponent(input.plugin_opts)}`;}
+        url=`ss://${base}@${input.server}:${input.server_port}${pluginStr}#${encodeURIComponent(tag)}`;
+      } else if(protocol==='vless'){
+        const params=[];
+        if(input.security==='tls') params.push('security=tls');
+        if(input.tls?.server_name) params.push('sni='+encodeURIComponent(input.tls.server_name));
+        if(input.flow) params.push('flow='+input.flow);
+        if(input.packet_encoding) params.push('packet_encoding='+input.packet_encoding);
+        
+        // 修复 utls 处理
+        if(input.utls?.enabled && input.utls.fingerprint) {
+          params.push('fp='+encodeURIComponent(input.utls.fingerprint));
+        } else if(input.tls?.utls?.enabled && input.tls.utls.fingerprint) {
+          params.push('fp='+encodeURIComponent(input.tls.utls.fingerprint));
+        }
+        
+        // 修复 transport 参数
+        if(input.transport?.type === 'ws') {
+          params.push('type=ws');
+          if(input.transport.path) params.push('path='+encodeURIComponent(input.transport.path));
+          if(input.transport.headers?.Host) {
+            const host = Array.isArray(input.transport.headers.Host) 
+              ? input.transport.headers.Host[0] 
+              : input.transport.headers.Host;
+            params.push('host='+encodeURIComponent(host));
+          }
+        }
+        
+        const paramStr=params.length?('?'+params.join('&')):'';
+        url=`vless://${input.uuid}@${input.server}:${input.server_port}${paramStr}#${encodeURIComponent(tag)}`;
+      } else if(protocol==='vmess'){
+        const node={v:"2",ps:tag,add:input.server,port:input.server_port,id:input.uuid,aid:input.aid||"0",net:input.transport?.type||"tcp",type:"none",host:input.transport?.headers?.Host||"",path:input.transport?.path||"/",tls:input.security||""};
+        url=`vmess://${safeB64Encode(JSON.stringify(node))}`;
+      } else if(protocol==='trojan'){
+        url=`trojan://${input.password}@${input.server}:${input.server_port}#${encodeURIComponent(tag)}`;
+      } else if(protocol==='hy2'){
+        url=`hy2://${input.password}@${input.server}:${input.server_port}#${encodeURIComponent(tag)}`;
+      }
+      return url;
+    }
+
+    function displayNodeInfo(node, containerId) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = '';
+      
+      const infoHtml = `
+        <div class="node-info-item">
+          <span class="node-info-label">🏷️ 节点名称:</span>
+          <span class="node-info-value">${node.tag || '未命名'}</span>
+        </div>
+        <div class="node-info-item">
+          <span class="node-info-label">🌐 服务器:</span>
+          <span class="node-info-value">${node.server}:${node.server_port}</span>
+        </div>
+        <div class="node-info-item">
+          <span class="node-info-label">🔑 UUID:</span>
+          <span class="node-info-value">${node.uuid || '无'}</span>
+        </div>
+        <div class="node-info-item">
+          <span class="node-info-label">🔒 协议:</span>
+          <span class="node-info-value">${node.type || 'vless'}</span>
+        </div>
+        <div class="node-info-item">
+          <span class="node-info-label">🛡️ 传输安全:</span>
+          <span class="node-info-value">${node.security || 'none'}</span>
+        </div>
+        <div class="node-info-item">
+          <span class="node-info-label">🚀 传输协议:</span>
+          <span class="node-info-value">${node.transport?.type || 'tcp'}</span>
+        </div>
+        ${node.transport?.path ? `
+        <div class="node-info-item">
+          <span class="node-info-label">📁 路径:</span>
+          <span class="node-info-value">${node.transport.path}</span>
+        </div>` : ''}
+        ${node.tls?.server_name ? `
+        <div class="node-info-item">
+          <span class="node-info-label">🔍 SNI:</span>
+          <span class="node-info-value">${node.tls.server_name}</span>
+        </div>` : ''}
+        ${(node.utls?.fingerprint || node.tls?.utls?.fingerprint) ? `
+        <div class="node-info-item">
+          <span class="node-info-label">📊 指纹:</span>
+          <span class="node-info-value">${node.utls?.fingerprint || node.tls?.utls?.fingerprint}</span>
+        </div>` : ''}
+        ${node.packet_encoding ? `
+        <div class="node-info-item">
+          <span class="node-info-label">📦 包编码:</span>
+          <span class="node-info-value">${node.packet_encoding}</span>
+        </div>` : ''}
+      `;
+      
+      container.innerHTML = infoHtml;
+      container.style.display = 'block';
+    }
+
+    function processInput(){
+      let text=document.getElementById('inputText').value.trim();
+      if(!text){alert('请输入内容！');return;}
+      let node;
+      try{ node=JSON.parse(text); }catch{ try{ const parsed=jsyaml.load(text); node=Array.isArray(parsed)?parsed[0]:parsed; }catch{ node=text; } }
+      const normalized=normalizeNode(node);
+      const url=convertNode(normalized);
+      document.getElementById('output').textContent=url;
+      
+      // 显示节点详细信息
+      displayNodeInfo(normalized, 'nodeInfo');
+      
+      updateStats();
+    }
+
+    function processBatch(){
+      let text=document.getElementById('batchInput').value.trim();
+      if(!text){alert('请输入批量节点 YAML/JSON！');return;}
+      let nodes;
+      try{
+        const parsed=jsyaml.load(text);
+        nodes=Array.isArray(parsed)?parsed: [parsed];
+      }catch(e){ alert('批量输入解析失败：'+e.message); return; }
+      const normalizedArr=nodes.map(n=>normalizeNode(n));
+      const results=normalizedArr.map((n,idx)=>convertNode(n,n.name||n.tag||(`节点${idx+1}`)));
+      document.getElementById('batchOutput').textContent=results.join("\n\n");
+      
+      // 显示第一个节点的信息
+      if(normalizedArr.length > 0) {
+        displayNodeInfo(normalizedArr[0], 'batchNodeInfo');
+      }
+      
+      updateStats(nodes.length);
+    }
+
+    function copyOutput(id){ 
+      const output=document.getElementById(id); 
+      const text = output.textContent;
+      
+      if (!text) {
+        alert('没有内容可复制！');
+        return;
+      }
+      
+      // 使用现代 Clipboard API
+      navigator.clipboard.writeText(text).then(() => {
+        const button = event.target;
+        button.classList.add('success-animation');
+        const originalText = button.innerHTML;
+        button.innerHTML = '✅ 已复制！';
+        
+        setTimeout(() => {
+          button.classList.remove('success-animation');
+          button.innerHTML = originalText;
+        }, 1500);
+      }).catch(err => {
+        console.error('复制失败:', err);
+        // 备用方案：使用传统方法
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        
+        const button = event.target;
+        button.classList.add('success-animation');
+        const originalText = button.innerHTML;
+        button.innerHTML = '✅ 已复制！';
+        
+        setTimeout(() => {
+          button.classList.remove('success-animation');
+          button.innerHTML = originalText;
+        }, 1500);
+      });
+    }
+
+    function clearAll(){ 
+      document.getElementById('inputText').value=''; 
+      document.getElementById('protocol').value=''; 
+      document.getElementById('customTag').value=''; 
+      document.getElementById('output').textContent=''; 
+      document.getElementById('nodeInfo').style.display='none'; 
+    }
+
+    function clearBatch(){ 
+      document.getElementById('batchInput').value=''; 
+      document.getElementById('batchProtocol').value=''; 
+      document.getElementById('batchOutput').textContent=''; 
+      document.getElementById('batchNodeInfo').style.display='none'; 
+    }
+
+    function updateStats(count = 1) {
+      const totalElement = document.getElementById('totalConverted');
+      const total = parseInt(totalElement.textContent) + count;
+      totalElement.textContent = total;
+    }
+
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+      
+      document.querySelector(`.tab:nth-child(${tabName === 'single' ? 1 : 2})`).classList.add('active');
+      document.getElementById(`${tabName}-tab`).classList.add('active');
+    }
+
+    // 初始化
+    initMouseEffects();
+  </script>
+</body>
+</html>
